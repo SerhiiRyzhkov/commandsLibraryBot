@@ -7,10 +7,12 @@ import org.springframework.context.annotation.PropertySource;
 
 @Configuration
 @Data
-@PropertySource("application.properties")
+@PropertySource("classpath:application.properties")
 public class BotConfig {
-    /*@Value("${bot.name")*/
-    String botName="commandsLibraryBot";
-    /*@Value("${bot.token")*/
-    String token="6078980292:AAGNvKeyFQTmaqYf4d3ZJvpptaQMlQuhTsE";
+
+    @Value("${bot.name}")
+    String botName;
+
+    @Value("${bot.token}")
+    String token;
 }
