@@ -18,6 +18,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 
@@ -84,6 +86,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
+
     private void registerUser(Message message)
     {
         if(userRepository.findById(message.getChatId()).isEmpty()){
@@ -96,7 +100,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
     private void startCommandReceived(long chatID, String name) {
-        String answer = EmojiParser.parseToUnicode("Hi, " + name + "! Nice to meet you!"+":smile:");
+        String answer = EmojiParser.parseToUnicode("Hi, " + name + "! Nice to meet you! "+":wink:"+" Please " +
+                "select the technology:");
+        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+        List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+        InlineKeyboardButton gitButton  = new InlineKeyboardButton();
+        gitButton.setText("GIT");
+        gitButton.setCallbackData("GIT_BUTTON");
+        rowInLine.add(gitButton);
+        rowsInline.add(rowInLine);
+        markupInline.setKeyboard(rowsInline);
+        SendMessage message = new SendMessage();
+        message.setChatId(chatID);
+        message.setReplyMarkup(markupInline);
+
         log.info("Replied to user "+name);
         sendMessage(chatID,answer);
     }
