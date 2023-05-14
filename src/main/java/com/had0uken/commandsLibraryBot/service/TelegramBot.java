@@ -1,22 +1,24 @@
 package com.had0uken.commandsLibraryBot.service;
 
 import com.had0uken.commandsLibraryBot.config.BotConfig;
-import com.had0uken.commandsLibraryBot.model.User;
-import com.had0uken.commandsLibraryBot.model.UserRepository;
+import com.had0uken.commandsLibraryBot.model.*;
 import com.vdurmont.emoji.EmojiParser;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.glassfish.grizzly.http.util.TimeStamp;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Chat;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
-import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -32,9 +34,15 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserRepository userRepository;
-    final BotConfig config;
+    @Autowired
+    private CommandRepository commandRepository;
+    @Autowired
+    private TechnologyRepository technologyRepository;
 
-    static final String HELP_TEXT = "Hi there! I'm a bot designed to help you with SQL commands. Here are some of the SQL commands you can use:\n\n" +
+    final BotConfig config;
+    static final String ERROR_TEXT = "Error occurred: ";
+
+    static final String HELP_TEXT = "Hi there! I'm a bot designed to help you with SQL, GIT AND DOCKER commands. Here are some of the commands you can use:\n\n" +
             "Type /start to see a welcome message\n\n" +
             "Type /help to see this message again\n\n";
     public TelegramBot(BotConfig config){
@@ -71,19 +79,72 @@ public class TelegramBot extends TelegramLongPollingBot {
         if(update.hasMessage()&&update.getMessage().hasText()){
             String messageText = update.getMessage().getText();
             long chatID = update.getMessage().getChatId();
-
+            SendMessage message = new SendMessage();
+            message.setChatId(chatID);
             switch (messageText){
                 case "/start":
                     registerUser(update.getMessage());
-                    startCommandReceived(chatID, update.getMessage().getChat().getFirstName());
+                    startCommandReceived(chatID, update.getMessage().getChat().getFirstName(),null);
                     break;
                 case "/help":
-                    sendMessage(chatID,HELP_TEXT);
+                    message.setText(HELP_TEXT);
+                    executeMessage(message);
+                    break;
+                case "/mydata":
+                    message.setText(myData(update));
+                    executeMessage(message);
                     break;
                 default:
-                    sendMessage(chatID,"Sorry, command was not recognized");
+                    message.setText("Sorry, command was not recognized");
+                    executeMessage(message);
             }
         }
+
+
+
+        else if (update.hasCallbackQuery()){
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            String callbackData = update.getCallbackQuery().getData();
+            long messageId = update.getCallbackQuery().getMessage().getMessageId();
+            long chatId = update.getCallbackQuery().getMessage().getChatId();
+
+            EditMessageText editMessageText = new EditMessageText();
+            editMessageText.setMessageId((int) messageId);
+            editMessageText.setChatId(chatId);
+            if(callbackData.equals("back_button")) {
+                Long userID = callbackQuery.getFrom().getId();
+                GetChatMember getChatMember = new GetChatMember();
+                getChatMember.setChatId(chatId);
+                getChatMember.setUserId(userID);
+                try {
+                    ChatMember chatMember = execute(getChatMember);
+                    String firstName = chatMember.getUser().getFirstName();
+                    startCommandReceived(chatId,firstName,editMessageText);
+                } catch (TelegramApiException e) {
+                    log.error(ERROR_TEXT + e.getMessage());
+                }
+
+            }
+            List<Command> list =
+            commandRepository.findByTechnologyID(Integer.parseInt(callbackData));
+            InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
+            for (Command command : list) {
+                List<InlineKeyboardButton> rowInLine = new ArrayList<>();
+                InlineKeyboardButton button = new InlineKeyboardButton();
+                button.setText(command.getMeaning());
+                button.setCallbackData(command.getCallbackData());
+                rowInLine.add(button);
+                rowsInline.add(rowInLine);
+            }
+            rowsInline.add(getBackButton());
+            markupInline.setKeyboard(rowsInline);
+            String text="Select the command, you are interested in:";
+            editMessageText.setText(text);
+            editMessageText.setReplyMarkup(markupInline);
+            executeMessage(editMessageText);
+        }
+
     }
 
 
@@ -99,37 +160,78 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         }
     }
-    private void startCommandReceived(long chatID, String name) {
-        String answer = EmojiParser.parseToUnicode("Hi, " + name + "! Nice to meet you! "+":wink:"+" Please " +
+
+
+    private void startCommandReceived(long chatID, String name, EditMessageText editMessageText) {
+        System.out.println("here2");
+        String answer = EmojiParser.parseToUnicode("Hi, " + name + "! Nice to meet you! " + ":wink:" + " Please " +
                 "select the technology:");
-        InlineKeyboardMarkup markupInline = new InlineKeyboardMarkup();
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInline = new ArrayList<>();
         List<InlineKeyboardButton> rowInLine = new ArrayList<>();
-        InlineKeyboardButton gitButton  = new InlineKeyboardButton();
-        gitButton.setText("GIT");
-        gitButton.setCallbackData("GIT_BUTTON");
-        rowInLine.add(gitButton);
+
+        for (Technology technology : technologyRepository.findAll()) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(technology.getTechnology());
+            button.setCallbackData(String.valueOf(technology.getId()));
+            rowInLine.add(button);
+        }
         rowsInline.add(rowInLine);
-        markupInline.setKeyboard(rowsInline);
-        SendMessage message = new SendMessage();
-        message.setChatId(chatID);
-        message.setReplyMarkup(markupInline);
+        markup.setKeyboard(rowsInline);
+
 
         log.info("Replied to user "+name);
-        sendMessage(chatID,answer);
+        if(editMessageText==null) {
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatID);
+            sendMessage.setText(answer);
+            sendMessage.setReplyMarkup(markup);
+            executeMessage(sendMessage);
+        }
+        else {
+            editMessageText.setChatId(chatID);
+            editMessageText.setText(answer);
+            editMessageText.setReplyMarkup(markup);
+            executeMessage(editMessageText);
+        }
+
     }
-    private void sendMessage(long chatID, String textToSend){
-        SendMessage message = new SendMessage();
-        message.setChatId(String.valueOf(chatID));
-        message.setText(textToSend);
 
-
+    private void executeMessage(EditMessageText message){
         try {
             execute(message);
         } catch (TelegramApiException e) {
-            log.error("Error occurred: "+ e.getMessage());
+            log.error(ERROR_TEXT + e.getMessage());
         }
-
-
     }
+
+    private void executeMessage(SendMessage message){
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            log.error(ERROR_TEXT + e.getMessage());
+        }
+    }
+
+    private List<InlineKeyboardButton> getBackButton(){
+        List<InlineKeyboardButton> backButtonList = new ArrayList<>();
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText("<< BACK TO MAIN MENU");
+        button.setCallbackData("back_button");
+        backButtonList.add(button);
+        return backButtonList;
+    }
+
+
+
+    private String myData(Update update){
+        return  "\"Hello, "+ update.getMessage().getChat().getFirstName() +"here is your data:\n" +
+                "\n" +
+                "Name:"+ update.getMessage().getChat().getFirstName() +"\n" +
+                "Last Name:"+ update.getMessage().getChat().getLastName() +"\n" +
+                "Username:"+ update.getMessage().getChat().getUserName() +"\n";
+    }
+
 }
+
+

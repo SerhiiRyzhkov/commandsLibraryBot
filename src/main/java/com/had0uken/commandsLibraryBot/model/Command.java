@@ -17,8 +17,8 @@ public class Command implements Serializable {
     private int technologyID;
 
     @Id
-    @Column(name = "tg_command")
-    private String tgCommand;
+    @Column(name = "callback_data")
+    private String callbackData;
 
     @Column(name = "command_syntax")
     private String syntax;
@@ -31,15 +31,15 @@ public class Command implements Serializable {
 
 
     @ManyToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "id")
+    @JoinColumn(name = "techology_id")
     private Technology technology;
 
     public Command() {
     }
 
-    public Command(int technologyID, String tgCommand, String syntax, String meaning, String example) {
+    public Command(int technologyID, String callbackData, String syntax, String meaning, String example) {
         this.technologyID = technologyID;
-        this.tgCommand = tgCommand;
+        this.callbackData = callbackData;
         this.syntax = syntax;
         this.meaning = meaning;
         this.example = example;
@@ -53,12 +53,12 @@ public class Command implements Serializable {
         this.technologyID = technologyID;
     }
 
-    public String getTgCommand() {
-        return tgCommand;
+    public String getCallbackData() {
+        return callbackData;
     }
 
-    public void setTgCommand(String tgCommand) {
-        this.tgCommand = tgCommand;
+    public void setCallbackData(String callbackData) {
+        this.callbackData = callbackData;
     }
 
     public String getSyntax() {
@@ -97,7 +97,7 @@ public class Command implements Serializable {
     public String toString() {
         return "Command{" +
                 "technologyID=" + technologyID +
-                ", tgCommand='" + tgCommand + '\'' +
+                ", tgCommand='" + callbackData + '\'' +
                 ", syntax='" + syntax + '\'' +
                 ", meaning='" + meaning + '\'' +
                 ", example='" + example + '\'' +

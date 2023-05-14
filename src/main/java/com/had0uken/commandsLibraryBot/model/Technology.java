@@ -15,14 +15,12 @@ public class Technology implements Serializable {
     private static final long serialVersionUID = -1184637538085422263L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
+    @Column(name = "technology_id")
     public int id;
 
     @Column(name = "technology")
     private String technology;
 
-    @Column(name = "tg_command")
-    private String tgCommand;
 
     @OneToMany(cascade = CascadeType.ALL,mappedBy = "technology")
     private List<Command> commandList;
@@ -30,9 +28,16 @@ public class Technology implements Serializable {
     public Technology() {
     }
 
-    public Technology(String technology, String tgCommand) {
+    public List<Command> getCommandList() {
+        return commandList;
+    }
+
+    public void setCommandList(List<Command> commandList) {
+        this.commandList = commandList;
+    }
+
+    public Technology(String technology) {
         this.technology = technology;
-        this.tgCommand = tgCommand;
     }
 
     public void addCommand(Command command){
@@ -58,20 +63,13 @@ public class Technology implements Serializable {
         this.technology = technology;
     }
 
-    public String getTgCommand() {
-        return tgCommand;
-    }
 
-    public void setTgCommand(String tgCommand) {
-        this.tgCommand = tgCommand;
-    }
 
     @Override
     public String toString() {
         return "Technology{" +
                 "id=" + id +
                 ", technology='" + technology + '\'' +
-                ", tgCommand='" + tgCommand + '\'' +
                 '}';
     }
 }
