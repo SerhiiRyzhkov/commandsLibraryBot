@@ -16,7 +16,7 @@ public class Technology implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "technology_id")
-    public int id;
+    private int id;
 
     @Column(name = "technology")
     private String technology;
